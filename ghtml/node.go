@@ -50,9 +50,9 @@ func GetNodeByTagKV(htmlNote *html.Node, tag string, kvMap map[string]string) (r
 	return
 }
 
-// RenderToHTML 渲染为HTML字符串
-func RenderToHTML(n *html.Node) (htmlStr string, err error) {
-	b, err := RenderToBytes(n)
+// NodeToHTML 渲染为HTML字符串
+func NodeToHTML(n *html.Node) (htmlStr string, err error) {
+	b, err := NodeToBytes(n)
 	if err != nil {
 		return
 	}
@@ -60,7 +60,7 @@ func RenderToHTML(n *html.Node) (htmlStr string, err error) {
 	return
 }
 
-func RenderToBytes(n *html.Node) (htmlBytes []byte, err error) {
+func NodeToBytes(n *html.Node) (htmlBytes []byte, err error) {
 	var buf bytes.Buffer
 	err = html.Render(&buf, n)
 	if err != nil {
@@ -77,7 +77,7 @@ func GetTagAttributeValue(n *html.Node, key string) string {
 	}
 	for _, attr := range n.Attr {
 		if attr.Key == key {
-			return attr.Val
+			return strings.TrimSpace(attr.Val)
 		}
 	}
 	return ""
