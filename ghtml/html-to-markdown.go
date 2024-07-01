@@ -71,18 +71,18 @@ var TagFunc = map[string]func(node *html.Node) string{
 	},
 	// ul 标签不做转换
 	"ul": func(node *html.Node) string {
-		v, _ := RenderToString(node)
+		v, _ := RenderToHTML(node)
 		return "\n\n" + v + "\n\n"
 	},
 	// ol 标签不做转换
 	"ol": func(node *html.Node) string {
-		v, _ := RenderToString(node)
+		v, _ := RenderToHTML(node)
 		return "\n\n" + v + "\n\n"
 	},
 	// Table 标签，奇奇怪怪的用法太多，比如在表格里有换行、有代码等情况无法处理。
 	// Markdown默认的表格功能太弱，保留标签不变
 	"table": func(node *html.Node) string {
-		v, _ := RenderToString(node)
+		v, _ := RenderToHTML(node)
 		return "\n\n" + v + "\n\n"
 	},
 }

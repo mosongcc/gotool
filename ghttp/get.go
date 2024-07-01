@@ -13,3 +13,12 @@ func GetBody(url string) ([]byte, error) {
 	}
 	return io.ReadAll(resp.Body)
 }
+
+// GetBodyString GET请求返回Body内容
+func GetBodyString(url string) (string, error) {
+	b, err := GetBody(url)
+	if err != nil {
+		return "", nil
+	}
+	return string(b), nil
+}

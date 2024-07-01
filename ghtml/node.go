@@ -9,14 +9,14 @@ import (
 // HTML 节点操作
 // 做HTML解析的时使用，比用正则更稳
 
-// ParseHtmlString 解析HTML字符串
-func ParseHtmlString(htmlStr string) (n *html.Node, err error) {
+// Parse 解析HTML字符串
+func Parse(htmlStr string) (n *html.Node, err error) {
 	return html.Parse(strings.NewReader(htmlStr))
 }
 
-// GetHtmlNoteByTagKV 根据HTML标签与属性获取节点
+// GetNodeByTagKV 根据HTML标签与属性获取节点
 // 如果没有找到匹配的标签，rNode==nil ，使用时注意判断
-func GetHtmlNoteByTagKV(htmlNote *html.Node, tag string, kvMap map[string]string) (rNode *html.Node) {
+func GetNodeByTagKV(htmlNote *html.Node, tag string, kvMap map[string]string) (rNode *html.Node) {
 	var traverse func(*html.Node)
 	traverse = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == tag {
@@ -50,8 +50,8 @@ func GetHtmlNoteByTagKV(htmlNote *html.Node, tag string, kvMap map[string]string
 	return
 }
 
-// RenderToString HTML节点渲染为字符串
-func RenderToString(n *html.Node) (htmlStr string, err error) {
+// RenderToHTML 渲染为HTML字符串
+func RenderToHTML(n *html.Node) (htmlStr string, err error) {
 	b, err := RenderToBytes(n)
 	if err != nil {
 		return
@@ -68,4 +68,17 @@ func RenderToBytes(n *html.Node) (htmlBytes []byte, err error) {
 	}
 	htmlBytes = buf.Bytes()
 	return
+}
+
+// GetTagAttributeValue 获取标签属性值，不存在返回空字符串
+func GetTagAttributeValue(n *html.Node, key string) string {
+	if n == nil {
+		return ""
+	}
+	for _, attr := range n.Attr {
+		if attr.Key == key {
+			return attr.Val
+		}
+	}
+	return ""
 }
