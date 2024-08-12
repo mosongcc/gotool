@@ -37,8 +37,11 @@ func init() {
 		"h6": func(node *html.Node) string {
 			return fmt.Sprintf("\n###### %s\n\n", NodeToMarkdown(node))
 		},
+		"div": func(node *html.Node) string {
+			return fmt.Sprintf("\n%s\n", NodeToMarkdown(node))
+		},
 		"p": func(node *html.Node) string {
-			return fmt.Sprintf("%s\n\n", NodeToMarkdown(node))
+			return fmt.Sprintf("\n%s\n", NodeToMarkdown(node))
 		},
 		"strong": func(node *html.Node) string {
 			return fmt.Sprintf("**%s**", NodeToMarkdown(node))
@@ -49,7 +52,7 @@ func init() {
 		"a": func(node *html.Node) string {
 			for _, attr := range node.Attr {
 				if attr.Key == "href" {
-					return fmt.Sprintf("[%s](%s)", NodeToMarkdown(node), attr.Val)
+					return fmt.Sprintf("[%s](%s)", NodeToMarkdown(node), strings.TrimSpace(attr.Val))
 				}
 			}
 			return NodeToMarkdown(node)
@@ -58,7 +61,7 @@ func init() {
 		"img": func(node *html.Node) string {
 			for _, attr := range node.Attr {
 				if attr.Key == "src" {
-					return fmt.Sprintf("\n\n![%s](%s)\n\n", NodeToMarkdown(node), attr.Val)
+					return fmt.Sprintf("![%s](%s)", NodeToMarkdown(node), strings.TrimSpace(attr.Val))
 				}
 			}
 			return ""
@@ -92,6 +95,16 @@ func init() {
 		"table": func(node *html.Node) string {
 			v, _ := NodeToHTML(node)
 			return "\n\n" + v + "\n\n"
+		},
+		// 忽略标签
+		"script": func(node *html.Node) string {
+			return ""
+		},
+		"style": func(node *html.Node) string {
+			return ""
+		},
+		"iframe": func(node *html.Node) string {
+			return ""
 		},
 	}
 }
@@ -130,7 +143,7 @@ func NodeToText(node *html.Node) (md string) {
 		return
 	}
 	if node.Type == html.TextNode {
-		md = node.Data
+		md = strings.TrimSpace(node.Data)
 		return
 	}
 	for c := node.FirstChild; c != nil; c = c.NextSibling {

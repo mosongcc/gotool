@@ -50,6 +50,40 @@ func GetNodeByTagKV(htmlNote *html.Node, tag string, kvMap map[string]string) (r
 	return
 }
 
+// GetAllNodeByTagKV 查询所有节点
+func GetAllNodeByTagKV(htmlNote *html.Node, tag string, kvMap map[string]string) (ns []*html.Node) {
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == tag {
+			if kvMap == nil { //没有属性，返回当前节点
+				ns = append(ns, n)
+				return
+			}
+			var (
+				l = len(kvMap)
+				i = 0
+			)
+			for k, v := range kvMap {
+				for _, attr := range n.Attr {
+					if attr.Key == k && attr.Val == v {
+						i += 1
+						break
+					}
+				}
+			}
+			// 成功找到匹配的节点
+			if l == i {
+				ns = append(ns, n)
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
+		}
+	}
+	traverse(htmlNote)
+	return
+}
+
 // NodeToHTML 渲染为HTML字符串
 func NodeToHTML(n *html.Node) (htmlStr string, err error) {
 	b, err := NodeToBytes(n)
