@@ -3,3 +3,4 @@
 .fleet
 .secret
 *.log
+.data

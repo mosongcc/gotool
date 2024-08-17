@@ -38,10 +38,10 @@ func init() {
 			return fmt.Sprintf("\n###### %s\n\n", NodeToMarkdown(node))
 		},
 		"div": func(node *html.Node) string {
-			return fmt.Sprintf("\n%s\n", NodeToMarkdown(node))
+			return fmt.Sprintf("%s    \n\n", NodeToMarkdown(node))
 		},
 		"p": func(node *html.Node) string {
-			return fmt.Sprintf("\n%s\n", NodeToMarkdown(node))
+			return fmt.Sprintf("%s    \n\n", NodeToMarkdown(node))
 		},
 		"strong": func(node *html.Node) string {
 			return fmt.Sprintf("**%s**", NodeToMarkdown(node))
@@ -61,13 +61,16 @@ func init() {
 		"img": func(node *html.Node) string {
 			for _, attr := range node.Attr {
 				if attr.Key == "src" {
-					return fmt.Sprintf("![%s](%s)", NodeToMarkdown(node), strings.TrimSpace(attr.Val))
+					return fmt.Sprintf("![%s](%s)", "img", strings.TrimSpace(attr.Val))
 				}
 			}
 			return ""
 		},
 		"blockquote": func(node *html.Node) string {
-			return fmt.Sprintf("\n> %s\n", NodeToMarkdown(node))
+			v := NodeToMarkdown(node)
+			v = strings.ReplaceAll(v, "\n", "")         // 去掉换行符
+			v = strings.ReplaceAll(v, "    ", "    \n") // 4个空格后添加换行符
+			return fmt.Sprintf("\n> %s\n", v)
 		},
 		"code": func(node *html.Node) string {
 			return fmt.Sprintf("`%s`", NodeToMarkdown(node))
