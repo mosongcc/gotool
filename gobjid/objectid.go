@@ -1,4 +1,4 @@
-package gobjectid
+package gobjid
 
 import (
 	"crypto/rand"
@@ -13,7 +13,8 @@ import (
 	"time"
 )
 
-// 代码来自  https://github.com/mongodb/mongo-go-driver/blob/v1/bson/primitive/objectid.go
+//实现算法
+//参考代码  https://github.com/mongodb/mongo-go-driver/blob/v1/bson/primitive/objectid.go
 
 // ErrInvalidHex indicates that a hex string cannot be converted to an ObjectID.
 var ErrInvalidHex = errors.New("the provided hex string is not a valid ObjectID")

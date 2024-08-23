@@ -1,4 +1,4 @@
-package gmsm
+package gcrypt
 
 import (
 	"crypto/rand"
