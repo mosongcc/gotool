@@ -1,4 +1,4 @@
-package gobjid
+package gobjectid
 
 import "testing"
 

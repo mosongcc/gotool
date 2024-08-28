@@ -1,4 +1,4 @@
-package gobjid
+package gobjectid
 
 // Hex 生成16进制字符串ObjectID，长度24位
 func Hex() string {
