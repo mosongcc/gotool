@@ -15,6 +15,9 @@
 - model 生成 select | where | group by | order by  | limit  
 
 
+要求：
+1. 不写字符串形式的字段名，利用编译检查错误
+2. 只做单表的增删改查操作，特殊场景可配合缓存提高性能
 
 
 
