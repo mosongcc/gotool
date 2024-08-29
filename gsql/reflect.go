@@ -7,18 +7,18 @@ import (
 	"strings"
 )
 
-// getTableName 根据传入的表信息，获取表名
-func getTableName(table any) string {
+// GetTN 根据传入的表信息，获取表名
+func GetTN(table any) string {
 	valueOf := reflect.ValueOf(table)
 	if reflect.Pointer == valueOf.Kind() {
-		return getTableNameByReflect(reflect.TypeOf(table), valueOf)
+		return GetTNByReflect(reflect.TypeOf(table), valueOf)
 	} else {
 		return fmt.Sprintf("%v", table)
 	}
 }
 
-// getTableNameByReflect 反射表名,优先从TableName方法获取,没有方法则从名字获取
-func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name string) {
+// GetTNByReflect 反射表名,优先从TableName方法获取,没有方法则从名字获取
+func GetTNByReflect(typeOf reflect.Type, valueOf reflect.Value) (name string) {
 	method, isSet := typeOf.MethodByName("TableName")
 	if isSet {
 		res := method.Func.Call([]reflect.Value{valueOf})
@@ -38,8 +38,8 @@ func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name str
 	return
 }
 
-// getFieldName 获取结构体字段名
-func getFieldName(field any) string {
+// GetFN 获取结构体字段名
+func GetFN(field any) string {
 	valueOf := reflect.ValueOf(field)
 	if reflect.Pointer == valueOf.Kind() {
 		// 注意：取字段名之前，请先获取表名

@@ -7,40 +7,40 @@ import (
 	"strings"
 )
 
-type Insert struct {
+type InsertBuilder struct {
 	db *sql.DB
 
 	sql  string
 	args []any
 }
 
-func NewInsert(db *sql.DB) *Insert {
-	return &Insert{db: db}
+func NewInsertBuilder(db *sql.DB) *InsertBuilder {
+	return &InsertBuilder{db: db}
 }
 
-func (b *Insert) Insert(dest any) {
+func (b *InsertBuilder) Insert(dest any) {
 	typeOf := reflect.TypeOf(dest)
 	valueOf := reflect.ValueOf(dest)
 
-	tableName := getTableName(dest)
+	tableName := GetTN(dest)
 
 	var keys []string
-	var args []any
 	var place []string
 	for i := 0; i < typeOf.Elem().NumField(); i++ {
-		key := getFieldName(valueOf.Elem().Field(i))
-
 		isNotNull := valueOf.Elem().Field(i).Field(0).Field(1).Bool()
 		if isNotNull {
-			val := valueOf.Elem().Field(i).Field(0).Field(0).Interface()
-
+			key := GetFN(valueOf.Elem().Field(i))
 			keys = append(keys, key)
-			args = append(args, val)
 			place = append(place, "?")
+			b.args = append(b.args, valueOf.Elem().Field(i).Field(0).Field(0).Interface())
 		}
 	}
 
-	query := "INSERT INTO " + tableName + " (" + strings.Join(keys, ",") + ") VALUES (" + strings.Join(place, ",") + ")"
+	b.sql = "INSERT INTO " + tableName + " (" + strings.Join(keys, ",") + ") VALUES (" + strings.Join(place, ",") + ")"
 
-	slog.Info(query)
+	slog.Info(b.sql)
+}
+
+func (b *InsertBuilder) Exec() (r sql.Result, err error) {
+	return b.db.Exec(b.sql, b.args...)
 }

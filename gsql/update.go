@@ -17,7 +17,7 @@ func NewUpdate(db *sql.DB) *Update {
 }
 
 func (b *Update) Update(table any) *Update {
-	b.sql = "UPDATE " + getTableName(table)
+	b.sql = "UPDATE " + GetTN(table)
 	return b
 }
 
@@ -26,26 +26,30 @@ func (b *Update) SET(dest any) *Update {
 	}
 	b.sql = " SET "
 	for k, v := range dest.(map[string]any) {
-		b.sql += getFieldName(k) + " = ? "
+		b.sql += GetFN(k) + " = ? "
 		b.args = append(b.args, v)
 	}
 	return b
 }
 
 func (b *Update) Where(name any, opt string, v any) *Update {
-	b.sql += " WHERE " + getFieldName(name) + " " + opt + " ?"
+	b.sql += " WHERE " + GetFN(name) + " " + opt + " ?"
 	b.args = append(b.args, v)
 	return b
 }
 
 func (b *Update) And(name any, opt string, v any) *Update {
-	b.sql += " AND " + getFieldName(name) + " " + opt + " ?"
+	b.sql += " AND " + GetFN(name) + " " + opt + " ?"
 	b.args = append(b.args, v)
 	return b
 }
 
 func (b *Update) Or(name any, opt string, v any) *Update {
-	b.sql += " OR " + getFieldName(name) + " " + opt + " ?"
+	b.sql += " OR " + GetFN(name) + " " + opt + " ?"
 	b.args = append(b.args, v)
 	return b
+}
+
+func (b *Update) Exec() (r sql.Result, err error) {
+	return b.db.Exec(b.sql, b.args...)
 }

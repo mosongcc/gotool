@@ -2,6 +2,8 @@ package gsql
 
 import (
 	"database/sql"
+	"github.com/mosongcc/gotool/gstring"
+	"reflect"
 	"strings"
 )
 
@@ -15,70 +17,96 @@ const (
 	Like = " like "
 )
 
-type Select struct {
+type SelectBuilder[T any] struct {
 	db *sql.DB
 
+	t     T //查询结果返回类型
 	query string
 	args  []any
 }
 
-func NewSelect(db *sql.DB) *Select {
-	return &Select{db: db}
+func NewSelectBuilder[T any](db *sql.DB) *SelectBuilder[T] {
+	return &SelectBuilder[T]{db: db}
 }
 
-func (b *Select) Select(fields ...any) *Select {
+func (b *SelectBuilder[T]) Select(fields ...any) *SelectBuilder[T] {
 	b.query = "SELECT"
 	if fields == nil || len(fields) == 0 {
 		b.query += " * "
 		return b
 	}
 	for _, field := range fields {
-		b.query += " " + getFieldName(field) + ","
+		b.query += " " + GetFN(field) + ","
 	}
 	b.query = strings.TrimRight(b.query, ",")
 	return b
 }
 
-func (b *Select) From(table any) *Select {
-	b.query += " FROM " + getTableName(table)
+func (b *SelectBuilder[T]) From(table any) *SelectBuilder[T] {
+	b.query += " FROM " + GetTN(table)
 	return b
 }
 
-func (b *Select) Where(name any, opt string, v any) *Select {
-	b.query += " WHERE " + getFieldName(name) + " " + opt + " ?"
+func (b *SelectBuilder[T]) Where(name any, opt string, v any) *SelectBuilder[T] {
+	b.query += " WHERE " + GetFN(name) + " " + opt + " ?"
 	b.args = append(b.args, v)
 	return b
 }
 
-func (b *Select) And(name any, opt string, v any) *Select {
-	b.query += " AND " + getFieldName(name) + " " + opt + " ?"
+func (b *SelectBuilder[T]) And(name any, opt string, v any) *SelectBuilder[T] {
+	b.query += " AND " + GetFN(name) + " " + opt + " ?"
 	b.args = append(b.args, v)
 	return b
 }
 
-func (b *Select) Or(name any, opt string, v any) *Select {
-	b.query += " OR " + getFieldName(name) + " " + opt + " ?"
+func (b *SelectBuilder[T]) Or(name any, opt string, v any) *SelectBuilder[T] {
+	b.query += " OR " + GetFN(name) + " " + opt + " ?"
 	b.args = append(b.args, v)
 	return b
 }
 
-func (b *Select) GroupBy(names ...any) *Select {
+func (b *SelectBuilder[T]) GroupBy(names ...any) *SelectBuilder[T] {
 	b.query += " GROUP BY "
 	for _, name := range names {
-		b.query += getFieldName(name) + ","
+		b.query += GetFN(name) + ","
 	}
 	b.query = strings.TrimRight(b.query, ",")
 	return b
 }
 
-func (b *Select) OrderBy(name any, sort string) *Select {
-	b.query += " ORDER BY " + getFieldName(name) + " " + sort
+func (b *SelectBuilder[T]) OrderBy(name any, sort string) *SelectBuilder[T] {
+	b.query += " ORDER BY " + GetFN(name) + " " + sort
 	return b
 }
 
-func (b *Select) Find(result any) (err error) {
+func (b *SelectBuilder[T]) Query(result any) (data []T, err error) {
+	rows, err := b.db.Query(b.query, b.args...)
+	if err != nil {
+		return
+	}
+	return scan[T](rows)
+}
 
-	//rows, err := b.db.Query(b.query, b.args...)
+func scan[T any](rows *sql.Rows) (data []T, err error) {
+	var columns []string
+	columns, err = rows.Columns()
+	if err != nil {
+		return
+	}
 
-	return nil
+	var t T
+	rowType := reflect.TypeOf(t)
+	for rows.Next() {
+		rowValue := reflect.New(rowType).Elem()
+		valuesPtr := make([]any, len(columns))
+		for i := range columns {
+			valuesPtr[i] = rowValue.FieldByName(gstring.Camel(columns[i])).Pointer()
+		}
+		err = rows.Scan(valuesPtr...)
+		if err != nil {
+			return
+		}
+		data = append(data, rowValue.Interface().(T))
+	}
+	return
 }

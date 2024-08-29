@@ -1,14 +1,11 @@
 package gsql
 
-type SelectBuild struct {
-	items   []string
-	where   string
-	groupBy string
-	orderBy string
-	limit   uint64
-	offset  uint64
+import "database/sql"
+
+func Select[T any](db *sql.DB, table any, fields ...any) *SelectBuilder[T] {
+	return NewSelectBuilder[T](db).Select(fields).From(table)
 }
 
-func And(k, j, v string) string {
-	return "and" + k + j + v
+func Insert() {
+
 }
