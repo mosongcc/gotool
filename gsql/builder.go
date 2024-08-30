@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/mosongcc/gotool/gstring"
 	"reflect"
 	"strings"
@@ -18,9 +19,9 @@ const (
 	Lt    Opt = " < "
 	Gte   Opt = " >= "
 	Lte   Opt = " <= "
-	In    Opt = " in "
-	NotIn Opt = " not in "
-	Like  Opt = " like "
+	In    Opt = " IN "
+	NotIn Opt = " NOT IN "
+	Like  Opt = " LIKE "
 )
 
 type Builder struct {
@@ -44,36 +45,41 @@ func (b *Builder) WithValue(k, v any) *Builder {
 }
 
 func (b *Builder) Insert(dest any) *Builder {
-	tableName := TN(dest)
-
 	typeOf := reflect.TypeOf(dest)
+	if typeOf.Kind() != reflect.Struct {
+		panic(fmt.Errorf("Builder.Insert 参数类型必须是 Struct"))
+	}
 	valueOf := reflect.ValueOf(dest)
 
-	var keys []string
-	var place []string
-	for i := 0; i < typeOf.Elem().NumField(); i++ {
-		isNotNull := valueOf.Elem().Field(i).Field(0).Field(1).Bool()
-		if isNotNull {
-			key := FN(valueOf.Elem().Field(i))
-			keys = append(keys, key)
-			place = append(place, "?")
-			b.args = append(b.args, valueOf.Elem().Field(i).Field(0).Field(0).Interface())
-		}
-	}
+	tableName := getTableName(typeOf, valueOf)
+	keys, place, args := getStructFields(typeOf, valueOf)
+
+	b.args = args
 	b.sql = "INSERT INTO " + tableName + " (" + strings.Join(keys, ",") + ") VALUES (" + strings.Join(place, ",") + ")"
 	return b
 }
 
+// Update 更新
+// - table 表名，如果是字符串，字段名也要用字符串。如果是指针，字段名也可以用指针
+// - set 类型:struct | map 。 如果是Map，当表是指针地址时key可以是指针地址
 func (b *Builder) Update(table any, set any) *Builder {
-	b.sql = "UPDATE " + TN(table)
+	b.sql = "UPDATE " + TN(table) + " SET "
 
-	//TODO SET
-	if reflect.TypeOf(set).Kind() == reflect.Map {
-	}
-	b.sql = " SET "
-	for k, v := range set.(map[string]any) {
-		b.sql += FN(k) + " = ? "
-		b.args = append(b.args, v)
+	typeOf := reflect.TypeOf(set)
+	switch typeOf.Kind() {
+	case reflect.Struct:
+		valueOf := reflect.ValueOf(set)
+		keys, _, args := getStructFields(typeOf, valueOf)
+		b.sql += strings.Join(keys, " = ? ,") + " = ? "
+		b.args = append(b.args, args...)
+	case reflect.Map:
+		for k, v := range set.(map[any]any) {
+			b.sql += FN(k) + " = ? ,"
+			b.args = append(b.args, v)
+		}
+		b.sql = strings.TrimRight(b.sql, ",")
+	default:
+		panic(fmt.Errorf("Builder.Update 参数 set 仅限 Struct 或者 Map 类型"))
 	}
 	return b
 }
@@ -142,25 +148,46 @@ func (b *Builder) Limit(offset int64, limit int64) *Builder {
 	case Mssql:
 		b.sql += " OFFSET ? ROWS FETCH NEXT ? ROWS ONLY "
 		b.args = append(b.args, offset, limit)
+	case Oracle:
+		b.sql = "SELECT * FROM (SELECT t.*, ROWNUM rn FROM (" + b.sql + ") t WHERE ROWNUM <= ?) WHERE rn >= ?" //1结束行号  2开始行号
+		b.args = append(b.args, offset+limit, offset)
 	default:
 		panic(errors.New("Unsupported driver " + string(b.db.DriverName)))
 	}
 	return b
 }
 
+func (b *Builder) safe() (err error) {
+	if strings.HasPrefix(b.sql, "DELETE") && !strings.Contains(b.sql, "WHERE") {
+		err = errors.New("Builder.Exec 禁止DELETE操作不加WHERE条件")
+		return
+	}
+	if strings.HasPrefix(b.sql, "UPDATE") && !strings.Contains(b.sql, "WHERE") {
+		err = errors.New("Builder.Exec 禁止UPDATE操作不加WHERE条件")
+		return
+	}
+	return
+}
+
 // Exec 执行 INSERT UPDATE DELETE
 func (b *Builder) Exec() (r sql.Result, err error) {
-	return b.db.ExecContext(b.ctx, b.sql, b.args...)
+	if err = b.safe(); err != nil {
+		return
+	}
+	return b.db.DB.ExecContext(b.ctx, b.sql, b.args...)
 }
 
 // ExecTx 事务执行
 func (b *Builder) ExecTx(tx *sql.Tx) (r sql.Result, err error) {
+	if err = b.safe(); err != nil {
+		return
+	}
 	return tx.ExecContext(b.ctx, b.sql, b.args...)
 }
 
 // Query 执行 SELECT
 func (b *Builder) Query() (*sql.Rows, error) {
-	return b.db.QueryContext(b.ctx, b.sql, b.args...)
+	return b.db.DB.QueryContext(b.ctx, b.sql, b.args...)
 }
 
 // QueryTx 事务执行

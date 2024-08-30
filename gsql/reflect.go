@@ -26,29 +26,20 @@ func getPtrMap(ptr uintptr) string {
 func TN(table any) string {
 	valueOf := reflect.ValueOf(table)
 	if reflect.Pointer == valueOf.Kind() {
-		return getTableNameByReflect(reflect.TypeOf(table), valueOf)
+		return getTableNameByCache(reflect.TypeOf(table), valueOf)
 	} else {
 		return fmt.Sprintf("%v", table)
 	}
 }
 
-// getTableNameByReflect 反射表名,优先从TableName方法获取,没有方法则从名字获取
-func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name string) {
+// getTableNameByCache 反射表名,优先从TableName方法获取,没有方法则从名字获取
+func getTableNameByCache(typeOf reflect.Type, valueOf reflect.Value) (name string) {
 
 	name = getPtrMap(valueOf.Pointer())
 	if name != "" {
 		return
 	}
-
-	// 优先从 TableName 函数取表名字
-	method, isSet := typeOf.MethodByName("TableName")
-	if isSet {
-		res := method.Func.Call([]reflect.Value{valueOf})
-		name = res[0].String()
-	} else {
-		slices := strings.Split(typeOf.String(), ".")
-		name = gstring.Underline(slices[len(slices)-1])
-	}
+	name = getTableName(typeOf, valueOf)
 
 	//缓存表名字
 	setPtrMap(valueOf.Pointer(), name)
@@ -63,6 +54,19 @@ func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name str
 	return
 }
 
+func getTableName(typeOf reflect.Type, valueOf reflect.Value) (name string) {
+	// 优先函数取表名
+	method, isSet := typeOf.MethodByName("TableName")
+	if isSet {
+		res := method.Func.Call([]reflect.Value{valueOf})
+		name = res[0].String()
+	} else {
+		slices := strings.Split(typeOf.String(), ".")
+		name = gstring.Underline(slices[len(slices)-1])
+	}
+	return
+}
+
 // FN 获取结构体字段名
 func FN(field any) string {
 	valueOf := reflect.ValueOf(field)
@@ -72,4 +76,14 @@ func FN(field any) string {
 	} else {
 		return fmt.Sprintf("%v", valueOf)
 	}
+}
+
+// 取结构体字段
+func getStructFields(typeOf reflect.Type, valueOf reflect.Value) (keys, place []string, args []any) {
+	for i := 0; i < valueOf.Elem().NumField(); i++ {
+		keys = append(keys, gstring.Underline(typeOf.Elem().Field(i).Name))
+		place = append(place, "?")
+		args = append(args, valueOf.Elem().Field(i).Field(0).Field(0).Interface())
+	}
+	return
 }

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-// Driver 驱动标识
+// Driver 驱动标识，具体值根据使用的驱动获取，这里给出几个最常用的驱动值
 type Driver string
 
 const (
@@ -13,6 +13,7 @@ const (
 	Mssql    Driver = "mssql"
 	Postgres Driver = "postgres"
 	Sqlite3  Driver = "sqlite3"
+	Oracle   Driver = "ora"
 )
 
 type DB struct {
@@ -49,7 +50,7 @@ func (db *DB) Select(table any, fields ...any) *Builder {
 // Tx 事务
 func (db *DB) Tx(f func(tx *sql.Tx) (any, error)) (v any, err error) {
 	var tx *sql.Tx
-	tx, err = db.Begin()
+	tx, err = db.DB.Begin()
 	if err != nil {
 		return
 	}
