@@ -9,24 +9,18 @@ import (
 	"strings"
 )
 
-// Driver 驱动标识
-type Driver string
+type Opt string
 
 const (
-	Mysql    Driver = "mysql"
-	Mssql    Driver = "mssql"
-	Postgres Driver = "postgres"
-	Sqlite3  Driver = "sqlite3"
-)
-
-const (
-	Eq   = " = "
-	Gt   = " > "
-	Lt   = " < "
-	Gte  = " >= "
-	Lte  = " <= "
-	In   = " in "
-	Like = " like "
+	Eq    Opt = " = "
+	Ne    Opt = " <> "
+	Gt    Opt = " > "
+	Lt    Opt = " < "
+	Gte   Opt = " >= "
+	Lte   Opt = " <= "
+	In    Opt = " in "
+	NotIn Opt = " not in "
+	Like  Opt = " like "
 )
 
 type Builder struct {
@@ -50,10 +44,10 @@ func (b *Builder) WithValue(k, v any) *Builder {
 }
 
 func (b *Builder) Insert(dest any) *Builder {
+	tableName := TN(dest)
+
 	typeOf := reflect.TypeOf(dest)
 	valueOf := reflect.ValueOf(dest)
-
-	tableName := TN(dest)
 
 	var keys []string
 	var place []string
@@ -90,6 +84,8 @@ func (b *Builder) Delete(table any) *Builder {
 }
 
 func (b *Builder) Select(table any, fields ...any) *Builder {
+	tableName := TN(table)
+
 	b.sql = "SELECT"
 	if fields == nil || len(fields) == 0 {
 		b.sql += " * "
@@ -99,24 +95,24 @@ func (b *Builder) Select(table any, fields ...any) *Builder {
 		b.sql += " " + FN(field) + ","
 	}
 	b.sql = strings.TrimRight(b.sql, ",")
-	b.sql += " FROM " + TN(table)
+	b.sql += " FROM " + tableName
 	return b
 }
 
-func (b *Builder) Where(name any, opt string, v any) *Builder {
-	b.sql += " WHERE " + FN(name) + " " + opt + " ?"
+func (b *Builder) Where(name any, opt Opt, v any) *Builder {
+	b.sql += " WHERE " + FN(name) + string(opt) + "?"
 	b.args = append(b.args, v)
 	return b
 }
 
-func (b *Builder) And(name any, opt string, v any) *Builder {
-	b.sql += " AND " + FN(name) + " " + opt + " ?"
+func (b *Builder) And(name any, opt Opt, v any) *Builder {
+	b.sql += " AND " + FN(name) + string(opt) + "?"
 	b.args = append(b.args, v)
 	return b
 }
 
-func (b *Builder) Or(name any, opt string, v any) *Builder {
-	b.sql += " OR " + FN(name) + " " + opt + " ?"
+func (b *Builder) Or(name any, opt Opt, v any) *Builder {
+	b.sql += " OR " + FN(name) + string(opt) + "?"
 	b.args = append(b.args, v)
 	return b
 }
@@ -153,8 +149,8 @@ func (b *Builder) Limit(offset int64, limit int64) *Builder {
 }
 
 // Exec 执行 INSERT UPDATE DELETE
-func (b *Builder) Exec(db *sql.DB) (r sql.Result, err error) {
-	return db.ExecContext(b.ctx, b.sql, b.args...)
+func (b *Builder) Exec() (r sql.Result, err error) {
+	return b.db.ExecContext(b.ctx, b.sql, b.args...)
 }
 
 // ExecTx 事务执行
@@ -163,8 +159,8 @@ func (b *Builder) ExecTx(tx *sql.Tx) (r sql.Result, err error) {
 }
 
 // Query 执行 SELECT
-func (b *Builder) Query(db *sql.DB) (*sql.Rows, error) {
-	return db.QueryContext(b.ctx, b.sql, b.args...)
+func (b *Builder) Query() (*sql.Rows, error) {
+	return b.db.QueryContext(b.ctx, b.sql, b.args...)
 }
 
 // QueryTx 事务执行

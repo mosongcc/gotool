@@ -5,6 +5,21 @@ import (
 	"database/sql"
 )
 
+// Driver 驱动标识
+type Driver string
+
+const (
+	Mysql    Driver = "mysql"
+	Mssql    Driver = "mssql"
+	Postgres Driver = "postgres"
+	Sqlite3  Driver = "sqlite3"
+)
+
+type DB struct {
+	DriverName Driver
+	*sql.DB
+}
+
 // Open 连接数据库
 func Open(driverName Driver, dataSourceName string) (db *DB, err error) {
 	database, err := sql.Open(string(driverName), dataSourceName)
@@ -15,25 +30,20 @@ func Open(driverName Driver, dataSourceName string) (db *DB, err error) {
 	return
 }
 
-func Insert(db *DB, dest any) *Builder {
+func (db *DB) Insert(dest any) *Builder {
 	return NewBuilder(context.TODO(), db).Insert(dest)
 }
 
-func Update(db *DB, table any, set any) *Builder {
+func (db *DB) Update(table any, set any) *Builder {
 	return NewBuilder(context.TODO(), db).Update(table, set)
 }
 
-func Delete(db *DB, table any) *Builder {
+func (db *DB) Delete(table any) *Builder {
 	return NewBuilder(context.TODO(), db).Delete(table)
 }
 
-func Select(db *DB, table any, fields ...any) *Builder {
+func (db *DB) Select(table any, fields ...any) *Builder {
 	return NewBuilder(context.TODO(), db).Select(table, fields...)
-}
-
-type DB struct {
-	DriverName Driver
-	*sql.DB
 }
 
 // Tx 事务

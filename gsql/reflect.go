@@ -9,7 +9,6 @@ import (
 )
 
 // 缓存表名与字段名 key=指针地址 value=名字字符串
-// 取表名的同时缓存字段名
 var ptrMap sync.Map
 
 func setPtrMap(ptr uintptr, v string) {
@@ -35,6 +34,13 @@ func TN(table any) string {
 
 // getTableNameByReflect 反射表名,优先从TableName方法获取,没有方法则从名字获取
 func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name string) {
+
+	name = getPtrMap(valueOf.Pointer())
+	if name != "" {
+		return
+	}
+
+	// 优先从 TableName 函数取表名字
 	method, isSet := typeOf.MethodByName("TableName")
 	if isSet {
 		res := method.Func.Call([]reflect.Value{valueOf})
@@ -43,14 +49,17 @@ func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name str
 		slices := strings.Split(typeOf.String(), ".")
 		name = gstring.Underline(slices[len(slices)-1])
 	}
+
 	//缓存表名字
 	setPtrMap(valueOf.Pointer(), name)
+
 	//缓存字段名
 	for j := 0; j < valueOf.Elem().NumField(); j++ {
 		fieldPointer := valueOf.Elem().Field(j).Addr().Pointer()
 		fieldName := gstring.Underline(typeOf.Elem().Field(j).Name)
 		setPtrMap(fieldPointer, fieldName)
 	}
+
 	return
 }
 
@@ -58,7 +67,7 @@ func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name str
 func FN(field any) string {
 	valueOf := reflect.ValueOf(field)
 	if reflect.Pointer == valueOf.Kind() {
-		// 注意：取字段名之前，请先获取表名
+		// 注意：从缓存取字段名，必须先获取表名
 		return getPtrMap(valueOf.Pointer())
 	} else {
 		return fmt.Sprintf("%v", valueOf)
