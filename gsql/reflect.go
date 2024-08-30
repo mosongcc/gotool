@@ -8,21 +8,35 @@ import (
 	"sync"
 )
 
-// 缓存表名与字段名 key=指针地址 value=名字字符串
-var ptrMap sync.Map
+var (
+	tableMap sync.Map //缓存表名
+	fieldMap sync.Map //缓存字段名
 
-func setPtrMap(ptr uintptr, v string) {
-	ptrMap.Store(ptr, v)
+)
+
+func setTableMap(ptr uintptr, v string) {
+	tableMap.Store(ptr, v)
 }
 
-func getPtrMap(ptr uintptr) string {
-	if v, ok := ptrMap.Load(ptr); ok {
+func getTableMap(ptr uintptr) string {
+	if v, ok := tableMap.Load(ptr); ok {
 		return v.(string)
 	}
 	return ""
 }
 
-// TN 根据传入的表信息，获取表名
+func setFieldMap(ptr uintptr, v string) {
+	fieldMap.Store(ptr, v)
+}
+
+func getFieldMap(ptr uintptr) string {
+	if v, ok := fieldMap.Load(ptr); ok {
+		return v.(string)
+	}
+	return ""
+}
+
+// TN 根据传入的表信息，获取表名。  参数必须是结构体指针地址
 func TN(table any) string {
 	valueOf := reflect.ValueOf(table)
 	if reflect.Pointer == valueOf.Kind() {
@@ -34,23 +48,19 @@ func TN(table any) string {
 
 // getTableNameByCache 反射表名,优先从TableName方法获取,没有方法则从名字获取
 func getTableNameByCache(typeOf reflect.Type, valueOf reflect.Value) (name string) {
-
-	name = getPtrMap(valueOf.Pointer())
+	vptr := valueOf.Pointer()
+	name = getTableMap(vptr)
 	if name != "" {
 		return
 	}
 	name = getTableName(typeOf, valueOf)
+	setTableMap(vptr, name) //缓存表名字
 
-	//缓存表名字
-	setPtrMap(valueOf.Pointer(), name)
-
-	//缓存字段名
 	for j := 0; j < valueOf.Elem().NumField(); j++ {
 		fieldPointer := valueOf.Elem().Field(j).Addr().Pointer()
 		fieldName := gstring.Underline(typeOf.Elem().Field(j).Name)
-		setPtrMap(fieldPointer, fieldName)
+		setFieldMap(fieldPointer, fieldName) //缓存字段名
 	}
-
 	return
 }
 
@@ -72,7 +82,7 @@ func FN(field any) string {
 	valueOf := reflect.ValueOf(field)
 	if reflect.Pointer == valueOf.Kind() {
 		// 注意：从缓存取字段名，必须先获取表名
-		return getPtrMap(valueOf.Pointer())
+		return getFieldMap(valueOf.Pointer())
 	} else {
 		return fmt.Sprintf("%v", valueOf)
 	}
@@ -80,10 +90,17 @@ func FN(field any) string {
 
 // 取结构体字段
 func getStructFields(typeOf reflect.Type, valueOf reflect.Value) (keys, place []string, args []any) {
-	for i := 0; i < valueOf.Elem().NumField(); i++ {
-		keys = append(keys, gstring.Underline(typeOf.Elem().Field(i).Name))
+	if reflect.Pointer == valueOf.Kind() {
+		typeOf = typeOf.Elem()
+		valueOf = valueOf.Elem()
+	}
+	for i := 0; i < typeOf.NumField(); i++ {
+		name := typeOf.Field(i).Name
+		value := valueOf.Field(i).Interface()
+
+		keys = append(keys, gstring.Underline(name))
 		place = append(place, "?")
-		args = append(args, valueOf.Elem().Field(i).Field(0).Field(0).Interface())
+		args = append(args, value)
 	}
 	return
 }

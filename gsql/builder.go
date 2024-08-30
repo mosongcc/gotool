@@ -5,7 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/mosongcc/gotool/gstring"
+	"github.com/mosongcc/gotool/gjson"
+	"log/slog"
 	"reflect"
 	"strings"
 )
@@ -46,9 +47,6 @@ func (b *Builder) WithValue(k, v any) *Builder {
 
 func (b *Builder) Insert(dest any) *Builder {
 	typeOf := reflect.TypeOf(dest)
-	if typeOf.Kind() != reflect.Struct {
-		panic(fmt.Errorf("Builder.Insert 参数类型必须是 Struct"))
-	}
 	valueOf := reflect.ValueOf(dest)
 
 	tableName := getTableName(typeOf, valueOf)
@@ -142,9 +140,9 @@ func (b *Builder) Limit(offset int64, limit int64) *Builder {
 	case Mysql:
 		b.sql += " LIMIT ?,?"
 		b.args = append(b.args, offset, limit)
-	case Postgres, Sqlite3:
-		b.sql += "OFFSET ? LIMIT ? "
-		b.args = append(b.args, offset, limit)
+	case Postgres, Sqlite:
+		b.sql += " LIMIT ? OFFSET ? "
+		b.args = append(b.args, limit, offset)
 	case Mssql:
 		b.sql += " OFFSET ? ROWS FETCH NEXT ? ROWS ONLY "
 		b.args = append(b.args, offset, limit)
@@ -174,6 +172,7 @@ func (b *Builder) Exec() (r sql.Result, err error) {
 	if err = b.safe(); err != nil {
 		return
 	}
+	slog.Info(b.Sql())
 	return b.db.DB.ExecContext(b.ctx, b.sql, b.args...)
 }
 
@@ -182,16 +181,19 @@ func (b *Builder) ExecTx(tx *sql.Tx) (r sql.Result, err error) {
 	if err = b.safe(); err != nil {
 		return
 	}
+	slog.Info(b.Sql())
 	return tx.ExecContext(b.ctx, b.sql, b.args...)
 }
 
 // Query 执行 SELECT
 func (b *Builder) Query() (*sql.Rows, error) {
+	slog.Info(b.Sql())
 	return b.db.DB.QueryContext(b.ctx, b.sql, b.args...)
 }
 
 // QueryTx 事务执行
 func (b *Builder) QueryTx(tx *sql.Tx) (*sql.Rows, error) {
+	slog.Info(b.Sql())
 	return tx.QueryContext(b.ctx, b.sql, b.args...)
 }
 
@@ -199,7 +201,7 @@ func (b *Builder) QueryTx(tx *sql.Tx) (*sql.Rows, error) {
 func (b *Builder) Sql() (sql string) {
 	sql = b.sql
 	for _, v := range b.args {
-		sql = strings.Replace(sql, "?", "\""+v.(string)+"\"", 1)
+		sql = strings.Replace(sql, "?", fmt.Sprintf("\"%v\"", v), 1)
 	}
 	return
 }
@@ -211,27 +213,22 @@ func RowsScan[T any](rows *sql.Rows) (data []T, err error) {
 	if err != nil {
 		return
 	}
+	slog.Info(gjson.MarshalString(columns))
 
-	var t T
-	rowType := reflect.TypeOf(t)
 	for rows.Next() {
-		rowValue := reflect.New(rowType).Elem()
-		valuesPtr := make([]any, len(columns))
-		for i := range columns {
-			valuesPtr[i] = rowValue.FieldByName(gstring.Camel(columns[i])).Pointer()
-		}
-		err = rows.Scan(valuesPtr...)
+		var t T
+		err = rows.Scan(&t)
 		if err != nil {
 			return
 		}
-		data = append(data, rowValue.Interface().(T))
+		data = append(data, t)
 	}
 	return
 }
 
 // Find 查询结果列表解析  参数 rows 是 db.Query() 返回结果
 func Find[T any](rows *sql.Rows, e ...error) (list []T, err error) {
-	if len(e) > 0 {
+	if len(e) > 0 && e[0] != nil {
 		err = e[0]
 		return
 	}

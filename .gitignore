@@ -1,6 +1,6 @@
 .idea
 .vscode
 .fleet
-.secret
+*.sqlite.db
 *.log
 .data

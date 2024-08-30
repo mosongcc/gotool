@@ -1,9 +1,9 @@
 package test
 
 import (
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/mosongcc/gotool/gjson"
 	"github.com/mosongcc/gotool/gsql"
+	_ "modernc.org/sqlite"
 	"testing"
 )
 
@@ -24,23 +24,23 @@ func Test_CURD(t *testing.T) {
 	var u = &User{}
 
 	//打开连接
-	db, err := gsql.Open(gsql.Sqlite3, "gsql.db")
+	db, err := gsql.Open(gsql.Sqlite, "gsql.sqlite.db")
 	if err != nil {
 		return
 	}
 
 	//新增数据
-	_, err = db.Insert(&User{Name: "喵喵", Ctime: "20240101"}).Exec()
+	_, err = db.Insert(&User{Name: "喵喵", Age: 10, Ctime: "20240101"}).Exec()
 	if err != nil {
 		return
 	}
 
 	//查询数据
-	userList, err := gsql.Find[User](db.Select(u, &u.Name, &u.Ctime).Where(&u.Ctime, gsql.Gt, "20240101").Limit(0, 10).Query())
+	userList, err := gsql.Find[User](db.Select(u, &u.Name, &u.Ctime).Where(&u.Ctime, gsql.Gt, "20230101").Limit(0, 10).Query())
 	if err != nil {
 		return
 	}
-	t.Log(gjson.MarshalString(userList))
+	t.Log(len(userList), "   ", gjson.MarshalString(userList))
 
 	//修改数据
 	_, err = db.Update(u, map[any]any{&u.Name: "旺旺", &u.Ctime: "20240201"}).Where(&u.Name, gsql.Eq, "喵喵").And(&u.Ctime, gsql.Gt, "20240101").Exec()

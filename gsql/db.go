@@ -12,7 +12,7 @@ const (
 	Mysql    Driver = "mysql"
 	Mssql    Driver = "mssql"
 	Postgres Driver = "postgres"
-	Sqlite3  Driver = "sqlite3"
+	Sqlite   Driver = "sqlite" // _ "modernc.org/sqlite"   纯Go实现的Sqlite
 	Oracle   Driver = "ora"
 )
 
