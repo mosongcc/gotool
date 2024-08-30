@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/mosongcc/gotool/gjson"
+	"github.com/mosongcc/gotool/gstring"
 	"log/slog"
 	"reflect"
 	"strings"
@@ -147,7 +147,7 @@ func (b *Builder) Limit(offset int64, limit int64) *Builder {
 		b.sql += " OFFSET ? ROWS FETCH NEXT ? ROWS ONLY "
 		b.args = append(b.args, offset, limit)
 	case Oracle:
-		b.sql = "SELECT * FROM (SELECT t.*, ROWNUM rn FROM (" + b.sql + ") t WHERE ROWNUM <= ?) WHERE rn >= ?" //1结束行号  2开始行号
+		b.sql = "SELECT * FROM (SELECT t.*, ROWNUM rn FROM (" + b.sql + ") t WHERE ROWNUM <= ?) WHERE rn >= ? " //1结束行号  2开始行号
 		b.args = append(b.args, offset+limit, offset)
 	default:
 		panic(errors.New("Unsupported driver " + string(b.db.DriverName)))
@@ -201,24 +201,32 @@ func (b *Builder) QueryTx(tx *sql.Tx) (*sql.Rows, error) {
 func (b *Builder) Sql() (sql string) {
 	sql = b.sql
 	for _, v := range b.args {
-		sql = strings.Replace(sql, "?", fmt.Sprintf("\"%v\"", v), 1)
+		var val string
+		switch reflect.ValueOf(v).Kind() {
+		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			val = fmt.Sprintf("%v", v)
+		default:
+			val = fmt.Sprintf("\"%v\"", v)
+		}
+		sql = strings.Replace(sql, "?", val, 1)
 	}
 	return
 }
 
 // RowsScan 查询结果转为结构数据
 func RowsScan[T any](rows *sql.Rows) (data []T, err error) {
-	var columns []string
-	columns, err = rows.Columns()
+	columns, err := rows.Columns()
 	if err != nil {
 		return
 	}
-	slog.Info(gjson.MarshalString(columns))
-
 	for rows.Next() {
 		var t T
-		err = rows.Scan(&t)
-		if err != nil {
+		var valueOf = reflect.ValueOf(&t).Elem()
+		var scans []any
+		for _, column := range columns {
+			scans = append(scans, valueOf.FieldByName(gstring.Camel(column)).Addr().Interface())
+		}
+		if err = rows.Scan(scans...); err != nil {
 			return
 		}
 		data = append(data, t)

@@ -4,3 +4,5 @@
 *.sqlite.db
 *.log
 .data
+
+go.sum
