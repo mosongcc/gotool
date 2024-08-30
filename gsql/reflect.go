@@ -5,20 +5,36 @@ import (
 	"github.com/mosongcc/gotool/gstring"
 	"reflect"
 	"strings"
+	"sync"
 )
 
-// GetTN 根据传入的表信息，获取表名
-func GetTN(table any) string {
+// 缓存表名与字段名 key=指针地址 value=名字字符串
+// 取表名的同时缓存字段名
+var ptrMap sync.Map
+
+func setPtrMap(ptr uintptr, v string) {
+	ptrMap.Store(ptr, v)
+}
+
+func getPtrMap(ptr uintptr) string {
+	if v, ok := ptrMap.Load(ptr); ok {
+		return v.(string)
+	}
+	return ""
+}
+
+// TN 根据传入的表信息，获取表名
+func TN(table any) string {
 	valueOf := reflect.ValueOf(table)
 	if reflect.Pointer == valueOf.Kind() {
-		return GetTNByReflect(reflect.TypeOf(table), valueOf)
+		return getTableNameByReflect(reflect.TypeOf(table), valueOf)
 	} else {
 		return fmt.Sprintf("%v", table)
 	}
 }
 
-// GetTNByReflect 反射表名,优先从TableName方法获取,没有方法则从名字获取
-func GetTNByReflect(typeOf reflect.Type, valueOf reflect.Value) (name string) {
+// getTableNameByReflect 反射表名,优先从TableName方法获取,没有方法则从名字获取
+func getTableNameByReflect(typeOf reflect.Type, valueOf reflect.Value) (name string) {
 	method, isSet := typeOf.MethodByName("TableName")
 	if isSet {
 		res := method.Func.Call([]reflect.Value{valueOf})
@@ -38,8 +54,8 @@ func GetTNByReflect(typeOf reflect.Type, valueOf reflect.Value) (name string) {
 	return
 }
 
-// GetFN 获取结构体字段名
-func GetFN(field any) string {
+// FN 获取结构体字段名
+func FN(field any) string {
 	valueOf := reflect.ValueOf(field)
 	if reflect.Pointer == valueOf.Kind() {
 		// 注意：取字段名之前，请先获取表名
