@@ -1,6 +1,7 @@
 package ghttp
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 )
@@ -21,4 +22,14 @@ func GetBodyString(url string) (string, error) {
 		return "", nil
 	}
 	return string(b), nil
+}
+
+// GetBodyDecode 响应报文JSON解析
+func GetBodyDecode[T any](url string) (v T, err error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return
+	}
+	err = json.NewDecoder(resp.Body).Decode(&v)
+	return
 }
