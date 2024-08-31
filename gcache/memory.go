@@ -43,7 +43,7 @@ func (m *MemoryImpl) clear() {
 // key 缓存key必须全局唯一
 // duration 缓存有效时间
 // ds 当缓存没有数据时从数据源读取
-func (m *MemoryImpl) Load(key string, duration time.Duration, ds func() (out any, err error)) (out any, err error) {
+func (m *MemoryImpl) Load(key string, ds func() (out any, err error), duration time.Duration) (out any, err error) {
 	// 读取缓存
 	if valueAny, ok := m.syncMap.Load(key); ok {
 		item := valueAny.(value)
