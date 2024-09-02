@@ -43,14 +43,11 @@ func (m *MemoryImpl) clear() {
 // key 缓存key必须全局唯一
 // duration 缓存有效时间
 // ds 当缓存没有数据时从数据源读取
-func (m *MemoryImpl) Load(key string, ds func() (out any, err error), duration time.Duration) (out any, err error) {
+func (m *MemoryImpl) Load(key any, ds func() (out any, err error), duration time.Duration) (out any, err error) {
 	// 读取缓存
-	if valueAny, ok := m.syncMap.Load(key); ok {
-		item := valueAny.(value)
-		if time.Now().Before(item.exp) {
-			out = item.v
-			return
-		}
+	out = m.Get(key)
+	if out != nil {
+		return
 	}
 	// 读数据源
 	out, err = ds()
@@ -58,6 +55,20 @@ func (m *MemoryImpl) Load(key string, ds func() (out any, err error), duration t
 		return
 	}
 	// 写入缓存
-	m.syncMap.Store(key, value{v: out, exp: time.Now().Add(duration)})
+	m.Set(key, out, duration)
+	return
+}
+
+func (m *MemoryImpl) Set(key any, val any, duration time.Duration) {
+	m.syncMap.Store(key, value{v: val, exp: time.Now().Add(duration)})
+}
+func (m *MemoryImpl) Get(key any) (v any) {
+	if valueAny, ok := m.syncMap.Load(key); ok {
+		item := valueAny.(value)
+		if time.Now().Before(item.exp) {
+			v = item.v
+			return
+		}
+	}
 	return
 }
