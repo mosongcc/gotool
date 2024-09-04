@@ -43,19 +43,19 @@ func (m *MemoryImpl) clear() {
 // key 缓存key必须全局唯一
 // duration 缓存有效时间
 // ds 当缓存没有数据时从数据源读取
-func (m *MemoryImpl) Load(key any, ds func() (out any, err error), duration time.Duration) (out any, err error) {
+func (m *MemoryImpl) Load(key any, ds func() (out any, err error), duration time.Duration) (v any, err error) {
 	// 读取缓存
-	out = m.Get(key)
-	if out != nil {
+	v = m.Get(key)
+	if v != nil {
 		return
 	}
 	// 读数据源
-	out, err = ds()
-	if err != nil || out == nil {
+	v, err = ds()
+	if err != nil || v == nil {
 		return
 	}
 	// 写入缓存
-	m.Set(key, out, duration)
+	m.Set(key, v, duration)
 	return
 }
 

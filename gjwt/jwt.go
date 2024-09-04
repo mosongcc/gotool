@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -21,7 +22,7 @@ func Encode(v any, exp time.Time, secret string) (token string) {
 		panic(err)
 	}
 
-	var vMap = map[string]any{"v": string(valBytes), "t": exp}
+	var vMap = map[string]string{"v": string(valBytes), "t": exp.Format(time.RFC3339)}
 
 	b, err := json.Marshal(vMap)
 	if err != nil {
@@ -39,14 +40,25 @@ func Encode(v any, exp time.Time, secret string) (token string) {
 
 // Decode 解码
 func Decode[T any](token string, secret string) (v T, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = e.(error)
+		}
+		if err != nil {
+			slog.Info("JWT Decode : " + err.Error())
+			err = ErrToken
+			return
+		}
+	}()
+
 	secret = fmt.Sprintf("%x", md5.Sum([]byte(secret)))
 	if len(token) < 32 {
-		err = ErrToken
+		err = errors.New("invalid token, token too short")
 		return
 	}
 	tokenVal := token[12:]
 	if token[:12] != sign(tokenVal + secret)[:12] {
-		err = ErrToken
+		err = errors.New("invalid token")
 		return
 	}
 	tokenVal, err = aesDecodeCBC(tokenVal, secret)
@@ -54,21 +66,29 @@ func Decode[T any](token string, secret string) (v T, err error) {
 		return
 	}
 
-	var vMap map[string]any
+	var vMap map[string]string
 	err = json.Unmarshal([]byte(tokenVal), &vMap)
-	if err != nil {
+	if err != nil || vMap == nil {
 		return
 	}
 
 	// 判断有效期
-	exp := vMap["t"].(time.Time)
+	expV, ok := vMap["t"]
+	if !ok || len(expV) != 14 {
+		err = errors.New("invalid token exp")
+		return
+	}
+	exp, err := time.Parse(time.RFC3339, expV)
+	if err != nil {
+		return
+	}
 	if time.Now().After(exp) {
-		err = ErrToken
+		err = errors.New("token expired")
 		return
 	}
 
 	// 取值
-	val := vMap["v"].(string)
+	val := vMap["v"]
 	err = json.Unmarshal([]byte(val), &v)
 	if err != nil {
 		return
